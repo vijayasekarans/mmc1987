@@ -565,7 +565,7 @@ const SECTIONS = [{ id: 'poll', title: 'Dates & destination' }].concat(BOOK_SECT
 const hub = () => (S.data && S.data.hub) || { show: {}, going: {}, info: {} };
 const hubOn = () => HUB_SECTIONS.filter(s => hub().show[s.id]);
 const REQ1 = ['printName', 'specialty', 'city', 'life', 'memory', 'photoThen', 'photoNow'];
-const step1Done = () => !!(S.data && S.data.person.name && S.data.person.whatsapp && S.data.person.hasPin);
+const step1Done = () => !!(S.data && S.data.person.name && S.data.person.whatsapp && S.data.person.hasPin && S.data.person.email && S.data.person.address && S.data.person.city);
 const step2Done = () => !!(S.data && S.data.poll.meet && S.data.poll.trip);
 
 function travelNeed() {
@@ -698,14 +698,14 @@ function openStep1() {
   $('#app').innerHTML = topbar() + `<div class="wrap">
     ${isNew ? `<button class="back" id="s1back">‹ Back</button>` : `<button class="back" data-home>‹ Back to my steps</button>`}
     <div class="view"><div class="stepk">Step 1 of 3</div><h2>About you</h2>
-    <p class="intro">So we can reach you about the meet and the trip. Only the organising committee sees these details.</p>
+    ${!isNew && (!p.email || !p.address || !p.city) ? `<div class="note">Please add your <b>email, postal address and city</b> below. We now need these for everyone.</div>` : ''}<p class="intro">So we can reach you about the meet and the trip. Only the organising committee sees these details.</p>
     <div class="group"><h4>Your details</h4>
       ${f('name', 'Full name', p.name, { req: 1, ph: 'e.g. Dr. Anjali Raman', ac: 'name' })}
       ${f('college', 'What we called you in college', p.college, { ph: 'e.g. Anju' })}
       ${f('whatsapp', 'Mobile / WhatsApp number', p.whatsapp, { req: 1, type: 'tel', ph: '+91 98400 12345', hint: 'With country code. You’ll use this number to sign in.', ac: 'tel' })}
-      ${f('email', 'Email', p.email, { type: 'email', ph: 'you@example.com', hint: 'Lets us send you a PIN reset if you ever forget it.', ac: 'email' })}
-      ${f('address', 'Postal address', p.address, { area: 1, ph: 'House, street, city, PIN / ZIP code', hint: 'Only if you’d like a printed book or invitation posted to you.' })}
-      ${f('city', 'City & country', p.city, { ph: 'e.g. Chennai, India' })}
+      ${f('email', 'Email', p.email, { req: 1, type: 'email', ph: 'you@example.com', hint: 'For reunion updates, and to reset your PIN if you ever forget it.', ac: 'email' })}
+      ${f('address', 'Postal address', p.address, { req: 1, area: 1, ph: 'House, street, city, PIN / ZIP code', hint: 'Only if you’d like a printed book or invitation posted to you. (Needed so we can post the books.)' })}
+      ${f('city', 'City & country', p.city, { req: 1, ph: 'e.g. Chennai, India' })}
     </div>
     <div class="group"><h4>${needPin ? 'Choose your PIN' : 'Your PIN'}</h4>
       ${needPin ? `<p class="hint" style="margin:-6px 0 12px;color:var(--muted);font-size:15px">4 to 6 digits that you’ll remember. With your mobile number, it lets you come back to your page, and keeps it private.</p>
@@ -726,7 +726,7 @@ function openStep1() {
     const info = { name: v('name'), college: v('college'), whatsapp: v('whatsapp'), email: v('email'), address: v('address'), city: v('city') };
     if (!info.name) { msg.textContent = 'Please enter your full name.'; $('#s1-name').focus(); return; }
     if (info.whatsapp.replace(/\D/g, '').length < 8) { msg.textContent = 'Please enter your mobile number with country code.'; $('#s1-whatsapp').focus(); return; }
-    if (info.email && !/^\S+@\S+\.\S+$/.test(info.email)) { msg.textContent = 'That email doesn’t look right. Please check it, or leave it blank.'; $('#s1-email').focus(); return; }
+    if (!info.address) { msg.textContent = 'Please enter your postal address.'; $('#s1-address').focus(); return; } if (!info.city) { msg.textContent = 'Please enter your city and country.'; $('#s1-city').focus(); return; } if (!/^\S+@\S+\.\S+$/.test(info.email)) { msg.textContent = 'That email doesn’t look right. Please enter a valid email address.'; $('#s1-email').focus(); return; }
     let pin = '', rem = false;
     if (needPin) {
       pin = $('#pin1').value; rem = $('#pinRem').checked;
