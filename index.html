@@ -220,6 +220,11 @@ textarea{min-height:150px;resize:vertical;line-height:1.5}
 .nbpage{position:relative;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);overflow:auto;aspect-ratio:595/842;touch-action:pan-y pinch-zoom}
 .nbpage img{display:block;width:100%;height:auto}
 .nbpage.zoom img{width:200%}
+.nbpage.card{aspect-ratio:auto;min-height:220px}
+.nbmode{display:flex;gap:0;margin:10px 0 4px;border:1.5px solid var(--maroon);border-radius:12px;overflow:hidden}
+.nbmode button{flex:1;min-height:46px;border:0;background:#fff;color:var(--maroon);font-weight:700;font-size:16px;cursor:pointer}
+.nbmode button[aria-pressed="true"]{background:var(--maroon);color:#fff}
+.nbbar .n small{display:block;font-weight:500;color:var(--muted);font-size:13px}
 .nbpage .ld{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);font-weight:600}
 .nbmiss{font-size:15px;line-height:1.7;color:var(--ink)}
 .wa-btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:52px;padding:12px 22px;margin:4px 0 12px;border-radius:999px;background:#25D366;color:#fff !important;font:700 18px var(--sans);text-decoration:none;box-shadow:var(--shadow)}
@@ -1459,6 +1464,7 @@ function viewNb() {
   <div id="nbMe"></div>
   <div class="q nbsearch"><label for="nbQ">Find a classmate</label><input id="nbQ" type="text" placeholder="Type a name, e.g. Karpagam" autocomplete="off"></div>
   <div class="nbres" id="nbRes"></div>
+  <div class="nbmode" id="nbMode" hidden><button type="button" data-m="card" aria-pressed="true">One person</button><button type="button" data-m="page" aria-pressed="false">Book pages</button></div>
   <div class="nbbar"><button id="nbPrev" type="button">‹ Prev</button><span class="n" id="nbNum"></span><button id="nbNext" type="button">Next ›</button></div>
   <div class="nbpage" id="nbPage"><div class="ld">Opening the book…</div></div>
   <div class="nbbar"><button id="nbPrev2" type="button">‹ Prev</button><button id="nbZoom" type="button">🔍 Zoom</button><button id="nbNext2" type="button">Next ›</button></div>
@@ -1472,25 +1478,58 @@ async function bindNb() {
     $('#nbPage').innerHTML = '<div class="ld">The 1993 book will appear here very soon.</div>';
     ['nbPrev', 'nbNext', 'nbPrev2', 'nbNext2', 'nbZoom'].forEach(id => $('#' + id).disabled = true);
   }
-  const byId = {}; info.index.forEach(e => byId[e[0]] = e);
+  const byId = {}, cardOf = {}; info.index.forEach((e, i) => { byId[e[0]] = e; cardOf[e[0]] = i + 2; });
   const mineE = () => info.mine && byId[info.mine];
-  let page = S.nbPageN || (mineE() ? mineE()[1] : 1);
+  let mode = info.cards ? (S.nbMode || (() => { try { return localStorage.getItem('nbMode'); } catch (e) { return null; } })() || 'card') : 'page';
+  if (mode === 'card' && !info.cards) mode = 'page';
+  const max = () => mode === 'card' ? info.cards : info.pages;
+  const lastCard = () => info.cards || info.index.length + 2;
+  // where a given entry lives in the current view
+  const posOf = id => mode === 'card' ? cardOf[id] : byId[id][1];
+  // convert a position between the two views
+  const toPage = c => c <= 1 ? 1 : c >= lastCard() ? info.pages : info.index[c - 2][1];
+  const toCard = pg => pg <= 1 ? 1 : pg >= info.pages ? lastCard() : (cardOf[(info.index.find(e => e[1] === pg) || [])[0]] || 1);
+  let page = S.nbPos && S.nbPosMode === mode ? S.nbPos : (mineE() ? posOf(info.mine) : 1);
+  const label = n => {
+    if (mode === 'page') { const names = info.index.filter(e => e[1] === n).map(e => nbName(e[2])).join(' and '); return [`Page ${n} of ${info.pages}`, names]; }
+    if (n === 1) return ['The cover', ''];
+    if (n >= lastCard()) return ['The last page', ''];
+    const e = info.index[n - 2]; return [nbName(e[2]), `${n - 1} of ${info.index.length} · page ${e[1]}`];
+  };
+  const key = n => (mode === 'card' ? 'c' : 'p') + n;
+  const fetchImg = n => { const k = key(n); return S.nbImg[k] ? Promise.resolve(S.nbImg[k]) : run('nbPage', AUTH, n, mode).then(u => (S.nbImg[k] = u)); };
   const show = async n => {
     if (!info.installed) return;
-    page = S.nbPageN = Math.max(1, Math.min(info.pages, n));
-    $('#nbNum').textContent = `Page ${page} of ${info.pages}`;
+    page = S.nbPos = Math.max(1, Math.min(max(), n)); S.nbPosMode = mode;
+    const [l1, l2] = label(page);
+    $('#nbNum').innerHTML = esc(l1) + (l2 ? `<small>${esc(l2)}</small>` : '');
     ['nbPrev', 'nbPrev2'].forEach(id => $('#' + id).disabled = page <= 1);
-    ['nbNext', 'nbNext2'].forEach(id => $('#' + id).disabled = page >= info.pages);
+    ['nbNext', 'nbNext2'].forEach(id => $('#' + id).disabled = page >= max());
     const box = $('#nbPage'); if (!box) return;
-    if (!S.nbImg[page]) box.innerHTML = '<div class="ld">Turning the page…</div>';
+    box.classList.toggle('card', mode === 'card');
+    if (!S.nbImg[key(page)]) box.innerHTML = '<div class="ld">Turning the page…</div>';
+    const want = key(page);
     try {
-      if (!S.nbImg[page]) S.nbImg[page] = await run('nbPage', AUTH, page);
-      if (S.nbPageN !== page || !$('#nbPage')) return;
-      const names = info.index.filter(e => e[1] === page).map(e => nbName(e[2])).join(' and ');
-      box.innerHTML = `<img src="${S.nbImg[page]}" alt="Page ${page}${names ? ': ' + esc(names) : ''}">`;
-      [page + 1, page - 1].forEach(q => { if (q >= 1 && q <= info.pages && !S.nbImg[q]) run('nbPage', AUTH, q).then(u => S.nbImg[q] = u, () => {}); });
+      const url = await fetchImg(page);
+      if (key(S.nbPos) !== want || S.nbPosMode !== mode || !$('#nbPage')) return;
+      box.innerHTML = `<img src="${url}" alt="${esc([l1, l2].filter(Boolean).join(': '))}">`;
+      box.scrollTop = 0;
+      [page + 1, page - 1].forEach(q => { if (q >= 1 && q <= max()) fetchImg(q).catch(() => {}); });
     } catch (e) { box.innerHTML = `<div class="ld">${esc(e.message)}</div>`; }
   };
+  const goEntry = id => show(posOf(id));
+  const setMode = m => {
+    if (m === mode || (m === 'card' && !info.cards)) return;
+    const pos = mode === 'card' ? toPage(page) : toCard(page);
+    mode = S.nbMode = m; try { localStorage.setItem('nbMode', m); } catch (e) {}
+    $('#nbMode').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.m === m)));
+    $('#nbPage').classList.remove('zoom');
+    show(pos);
+  };
+  if (info.cards && info.installed) {
+    $('#nbMode').hidden = false;
+    $('#nbMode').querySelectorAll('button').forEach(b => { b.setAttribute('aria-pressed', String(b.dataset.m === mode)); b.onclick = () => setMode(b.dataset.m); });
+  }
   [['nbPrev', -1], ['nbPrev2', -1], ['nbNext', 1], ['nbNext2', 1]].forEach(([id, d]) => $('#' + id).onclick = () => show(page + d));
   $('#nbZoom').onclick = () => $('#nbPage').classList.toggle('zoom');
   let tx = null;
@@ -1508,7 +1547,7 @@ async function bindNb() {
       info.mine = await run('nbClaim', AUTH, id);
       Object.keys(info.claimed).forEach(k => { if (info.claimed[k] === 'me') delete info.claimed[k]; });
       info.claimed[id] = 'me'; S.data.person.nb = id;
-      pill('Linked ✓ Welcome back to 1993!', 'ok', 3000); drawMe(); drawRes(); drawMiss(); show(byId[id][1]);
+      pill('Linked ✓ Welcome back to 1993!', 'ok', 3000); drawMe(); drawRes(); drawMiss(); goEntry(id);
     } catch (e) { pill(e.message, 'err', 6000); }
   };
   const thumb = (id, el) => { if (!byId[id] || !byId[id][3]) return; run('nbPhoto', AUTH, id).then(u => { if (u && el) el.outerHTML = `<img src="${u}" alt="">`; }, () => {}); };
@@ -1516,11 +1555,11 @@ async function bindNb() {
     const el = $('#nbMe'); if (!el) return;
     const me = mineE();
     if (me) {
-      el.innerHTML = `<div class="nbme"><h4>📖 That's you on page ${me[1]}: ${esc(nbName(me[2]))}</h4>
+      el.innerHTML = `<div class="nbme"><h4>📖 That's you: ${esc(nbName(me[2]))} (page ${me[1]})</h4>
         <div class="row" style="gap:8px"><button class="btn" id="nbGoMe" type="button">Go to my page</button>
         ${me[3] && !C.LOCKED ? `<button class="btn ghost" id="nbUse" type="button">Use my 1993 photo in Book One</button>` : ''}</div>
         <button class="linkbtn" id="nbNotMe" type="button" style="margin-top:8px;color:var(--muted)">That's not me</button></div>`;
-      $('#nbGoMe').onclick = () => show(me[1]);
+      $('#nbGoMe').onclick = () => goEntry(me[0]);
       const u = $('#nbUse'); if (u) u.onclick = async () => {
         u.disabled = true; pill('Copying your 1993 photo…', '', 0);
         try { const r = await run('nbUseThenPhoto', AUTH); S.data.bookone.photoThen = r.id; S.data.bookone.approved = ''; pill('Done ✓ It is now your “Then” photo in Book One', 'ok', 3500); }
@@ -1539,19 +1578,19 @@ async function bindNb() {
     el.innerHTML = `<div class="nbme"><h4>Which one is you?</h4>
       <p class="hint" style="margin:0;color:var(--muted);font-size:15px">${cands.length ? 'Is one of these you? Tap “This is me” so friends can find you.' : 'Search for your name below and tap “This is me” on your entry.'}</p>
       <div class="nbcands">${cands.map(e => `<div class="nbcand"><span class="ph" data-th="${e[0]}"></span><b>${esc(nbName(e[2]))}<br><span class="pg" style="font-weight:400;font-size:14px;color:var(--muted)">Page ${e[1]}</span></b>
-        <button class="btn ghost" data-see="${e[1]}" type="button">See</button><button class="btn" data-claim="${e[0]}" type="button">This is me</button></div>`).join('')}</div></div>`;
+        <button class="btn ghost" data-see="${e[0]}" type="button">See</button><button class="btn" data-claim="${e[0]}" type="button">This is me</button></div>`).join('')}</div></div>`;
     el.querySelectorAll('[data-th]').forEach(x => thumb(x.dataset.th, x));
-    el.querySelectorAll('[data-see]').forEach(b => b.onclick = () => show(+b.dataset.see));
+    el.querySelectorAll('[data-see]').forEach(b => b.onclick = () => goEntry(b.dataset.see));
     el.querySelectorAll('[data-claim]').forEach(b => b.onclick = () => claim(b.dataset.claim));
   };
   const drawRes = () => {
     const q = ($('#nbQ').value || '').trim().toLowerCase(), el = $('#nbRes');
     if (q.length < 2) { el.innerHTML = ''; return; }
     const hits = info.index.filter(e => e[2].toLowerCase().replace(/\./g, '').includes(q.replace(/\./g, ''))).slice(0, 12);
-    el.innerHTML = hits.length ? hits.map(e => `<button class="r" type="button" data-pg="${e[1]}"><span>${esc(nbName(e[2]))}${info.claimed[e[0]] ? '<span class="tag">✓ joined</span>' : ''}</span>
+    el.innerHTML = hits.length ? hits.map(e => `<button class="r" type="button" data-pg="${e[0]}"><span>${esc(nbName(e[2]))}${info.claimed[e[0]] ? '<span class="tag">✓ joined</span>' : ''}</span>
       <span class="pg">Page ${e[1]} ›${!info.mine && !info.claimed[e[0]] ? ` · <a href="#" data-claim="${e[0]}">This is me</a>` : ''}</span></button>`).join('')
       : '<p class="sub" style="margin:4px 0">No one by that name. Try just the first name.</p>';
-    el.querySelectorAll('[data-pg]').forEach(b => b.onclick = ev => { if (ev.target.dataset.claim) { ev.preventDefault(); return claim(ev.target.dataset.claim); } show(+b.dataset.pg); $('#nbPage').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+    el.querySelectorAll('[data-pg]').forEach(b => b.onclick = ev => { if (ev.target.dataset.claim) { ev.preventDefault(); return claim(ev.target.dataset.claim); } goEntry(b.dataset.pg); $('#nbPage').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
   };
   const drawMiss = () => {
     const miss = info.index.filter(e => !info.claimed[e[0]]);
