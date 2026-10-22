@@ -216,6 +216,24 @@ textarea{min-height:150px;resize:vertical;line-height:1.5}
 .nbcand .btn{min-height:42px;padding:8px 14px;font-size:15px}
 .nbsearch input{width:100%}
 .nbres{display:grid;gap:6px;margin:8px 0 14px}
+.dirtile{border-color:#1C4644}
+.dirchips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 12px}
+.dirchips button{min-height:40px;padding:6px 12px;border-radius:999px;border:1.5px solid var(--line);background:#fff;font:600 15px var(--sans);color:var(--ink);cursor:pointer}
+.dirchips button[aria-pressed="true"]{background:var(--teal);border-color:var(--teal);color:#fff}
+.dirlist{display:grid;gap:8px}
+.dirrow{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.dirrow .h{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.dirrow b{font:700 18px var(--serif);color:var(--ink)}
+.dirrow .pg{color:var(--muted);font-size:13px;white-space:nowrap}
+.dirrow .now{font-size:15px;color:var(--muted);margin-top:2px}
+.dirrow .ph{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:6px;font-size:16px}
+.dirrow .ph a{display:inline-flex;align-items:center;min-height:36px;padding:4px 12px;border-radius:999px;font-weight:700;font-size:14px;text-decoration:none}
+.dirrow .ph a.wa{background:#25D366;color:#fff}.dirrow .ph a.call{border:1.5px solid var(--teal);color:var(--teal)}
+.dirrow .alt,.dirrow .note{font-size:13.5px;color:var(--muted);margin-top:4px}
+.dirrow .note{color:#8A5A12}
+.dtag{display:inline-block;font:700 12px var(--sans);padding:2px 8px;border-radius:99px;margin-left:6px;vertical-align:2px}
+.dtag.joined{background:var(--green-l);color:var(--green)}.dtag.not{background:#F6EAD6;color:#8A5A12}.dtag.memory{background:#ECE7F1;color:#5B2A5E}
+.dirlock{background:#FBF7EE;border:1px solid var(--gold-l);border-radius:12px;padding:10px 12px;font-size:15px;color:var(--muted);margin:8px 0 12px}
 .nbres button.r{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;text-align:left;background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 12px;cursor:pointer;font-size:17px}
 .nbres .pg{color:var(--muted);font-size:14px;white-space:nowrap}
 .nbres .tag{font-size:12px;font-weight:700;color:var(--green);background:var(--green-l);border-radius:99px;padding:2px 8px;margin-left:6px}
@@ -595,7 +613,7 @@ const HUB_SECTIONS = [
   { id: 'chat', title: 'Chat on WhatsApp', sub: 'Announcements and group chats' },
   { id: 'eventphotos', title: 'Reunion photos', sub: 'Shared albums for the meet and the trip' }
 ];
-const SECTIONS = [{ id: 'poll', title: 'Dates & destination' }, { id: 'nb', title: 'NOSTALGIA 1993' }].concat(BOOK_SECTIONS, HUB_SECTIONS);
+const SECTIONS = [{ id: 'poll', title: 'Dates & destination' }, { id: 'nb', title: 'NOSTALGIA 1993' }, { id: 'dir', title: 'Class directory' }].concat(BOOK_SECTIONS, HUB_SECTIONS);
 const hub = () => (S.data && S.data.hub) || { show: {}, going: {}, info: {} };
 const hubOn = () => HUB_SECTIONS.filter(s => hub().show[s.id]);
 const REQ1 = ['printName', 'specialty', 'city', 'life', 'memory', 'photoThen', 'photoNow'];
@@ -670,6 +688,7 @@ function home() {
       ${stepCard(2, 'Dates & destination poll', pollSub, s2 ? 'done' : (s1 ? 'todo' : 'locked'), 'poll')}
       ${stepCard(3, 'For the commemorative books', s2 ? `Add these any time until ${C.DEADLINE}` : 'Book One page, photos, stories, tributes', s2 ? (booksDone >= .99 ? 'done' : 'todo') : 'locked', 'books', books, BOOKS_TICKET)}
       ${s2 ? hubCard() : ''}
+      ${d.dir ? `<button class="tile dirtile" data-go="dir"><span class="num" aria-hidden="true">📇</span><span class="t"><small class="stepk">Private · MMC 87</small><b>Class directory</b><span>All 176 of us, with phone numbers and who has joined</span></span><span class="chev">›</span></button>` : ''}
       ${s1 ? `<button class="tile nbtile" data-go="nb"><img class="tk" src="${NB_TICKET}" alt="" aria-hidden="true"><span class="t"><small class="stepk">1993 · Our graduation book</small><b>Flip through NOSTALGIA 1993</b><span>Find yourself and old friends, page by page</span></span><span class="chev">›</span></button>` : ''}
     </div>
     ${s1 ? `<div class="privacy on"><span class="ic" aria-hidden="true">🔒</span><span class="tx"><b>Your page is protected with your PIN.</b></span>
@@ -700,13 +719,14 @@ function open(id) {
   if (id !== 'step1' && !step1Done()) return openStep1();
   if (BOOK_SECTIONS.concat(HUB_SECTIONS).some(s => s.id === id) && !step2Done()) { pill('Please finish Step 2 first', '', 2500); return open('poll'); }
   if (HUB_SECTIONS.some(s => s.id === id) && !hub().show[id]) return home();
+  if (id === 'dir' && !S.data.dir) return home();
   S.view = id;
   const sec = SECTIONS.find(s => s.id === id);
-  const stepLbl = id === 'nb' ? 'Our graduation book · 1993' : id === 'poll' ? 'Step 2 of 3' : HUB_SECTIONS.some(s => s.id === id) ? 'Step 4 · The reunion' : 'Step 3 · For the books';
+  const stepLbl = id === 'dir' ? 'MMC 87 · Private' : id === 'nb' ? 'Our graduation book · 1993' : id === 'poll' ? 'Step 2 of 3' : HUB_SECTIONS.some(s => s.id === id) ? 'Step 4 · The reunion' : 'Step 3 · For the books';
   let html = topbar() + `<div class="wrap"><button class="back" data-home>‹ Back to my steps</button><div class="view">
     <div class="stepk">${stepLbl}</div><h2>${esc(sec.title)}</h2>`;
   html += ({ poll: viewPoll, bookone: viewBookOne, photos: viewPhotos, stories: viewStories, tributes: viewTributes,
-             nb: viewNb, travel: viewTravel, funds: viewFunds, agenda: viewAgenda, chat: viewChat, eventphotos: viewEventPhotos })[id]();
+             nb: viewNb, dir: viewDir, travel: viewTravel, funds: viewFunds, agenda: viewAgenda, chat: viewChat, eventphotos: viewEventPhotos })[id]();
   html += id === 'poll' ? `</div>` : `<div style="margin:26px 0 8px"><button class="btn ghost wide" data-home>Done, back to my steps</button></div></div>`;
   html += footer() + `</div>`;
   $('#app').innerHTML = html;
@@ -715,7 +735,7 @@ function open(id) {
   document.querySelectorAll('[data-go2]').forEach(b => b.onclick = () => open(b.dataset.go2));
   bindInputs();
   ({ poll: bindPoll, bookone: bindBookOne, photos: bindPhotos, stories: bindStories, tributes: bindTributes,
-     nb: bindNb, funds: bindFunds, agenda: bindAgenda })[id]?.();
+     nb: bindNb, dir: bindDir, funds: bindFunds, agenda: bindAgenda })[id]?.();
   window.scrollTo(0, 0);
 }
 
@@ -723,7 +743,7 @@ function open(id) {
 function openStep1() {
   document.body.classList.remove('lp-on');
   S.view = 'step1';
-  const p = (S.data && S.data.person) || { name: '', college: '', whatsapp: '', email: '', address: '', city: '', hasPin: false };
+  const p = (S.data && S.data.person) || { name: '', college: '', whatsapp: '', phone2: '', email: '', address: '', city: '', hasPin: false };
   const isNew = !AUTH;
   const needPin = isNew || !p.hasPin;
   const f = (id, label, val, o = {}) => `<div class="q"><label for="s1-${id}">${esc(label)}${o.req ? ' <span style="color:var(--red)">*</span>' : ' <span class="opt">(optional)</span>'}</label>
@@ -737,7 +757,8 @@ function openStep1() {
     <div class="group"><h4>Your details</h4>
       ${f('name', 'Full name', p.name, { req: 1, ph: 'e.g. Dr. Anjali Raman', ac: 'name' })}
       ${f('college', 'What we called you in college', p.college, { ph: 'e.g. Anju' })}
-      ${f('whatsapp', 'Mobile / WhatsApp number', p.whatsapp, { req: 1, type: 'tel', ph: '+91 98400 12345', hint: 'With country code. You’ll use this number to sign in.', ac: 'tel' })}
+      ${f('whatsapp', 'Mobile / WhatsApp number', p.whatsapp, { req: 1, type: 'tel', ph: '+91 98400 12345', hint: 'Your primary number, with country code. You’ll use it to sign in.', ac: 'tel' })}
+      ${f('phone2', 'Second number', p.phone2 || '', { type: 'tel', ph: '+44 7700 900123', hint: 'Another mobile, a home number, or your number in another country. You can sign in with either.', ac: 'tel' })}
       ${f('email', 'Email', p.email, { req: 1, type: 'email', ph: 'you@example.com', hint: 'For reunion updates, and to reset your PIN if you ever forget it.', ac: 'email' })}
       ${f('address', 'Postal address', p.address, { req: 1, area: 1, ph: 'House, street, city, PIN / ZIP code', hint: 'Only if you’d like a printed book or invitation posted to you. (Needed so we can post the books.)' })}
       ${f('city', 'City & country', p.city, { req: 1, ph: 'e.g. Chennai, India' })}
@@ -758,9 +779,10 @@ function openStep1() {
   ['pin1', 'pin2'].forEach(id => { const el = $('#' + id); if (el) el.oninput = () => el.value = el.value.replace(/\D/g, '').slice(0, 6); });
   $('#s1save').onclick = async () => {
     const msg = $('#s1msg'), v = id => ($('#s1-' + id).value || '').trim();
-    const info = { name: v('name'), college: v('college'), whatsapp: v('whatsapp'), email: v('email'), address: v('address'), city: v('city') };
+    const info = { name: v('name'), college: v('college'), whatsapp: v('whatsapp'), phone2: v('phone2'), email: v('email'), address: v('address'), city: v('city') };
     if (!info.name) { msg.textContent = 'Please enter your full name.'; $('#s1-name').focus(); return; }
     if (info.whatsapp.replace(/\D/g, '').length < 8) { msg.textContent = 'Please enter your mobile number with country code.'; $('#s1-whatsapp').focus(); return; }
+    if (info.phone2 && info.phone2.replace(/\D/g, '').length < 8) { msg.textContent = 'Your second number looks too short. Please include the country code, or leave it empty.'; $('#s1-phone2').focus(); return; }
     if (!info.address) { msg.textContent = 'Please enter your postal address.'; $('#s1-address').focus(); return; } if (!info.city) { msg.textContent = 'Please enter your city and country.'; $('#s1-city').focus(); return; } if (!/^\S+@\S+\.\S+$/.test(info.email)) { msg.textContent = 'That email doesn’t look right. Please enter a valid email address.'; $('#s1-email').focus(); return; }
     let pin = '', rem = false;
     if (needPin) {
@@ -1608,6 +1630,57 @@ async function bindNb() {
   };
   $('#nbQ').oninput = drawRes;
   drawMe(); drawMiss(); show(page);
+}
+
+/* =========================================================
+   Class directory (committee only until opened up in Settings)
+   ========================================================= */
+const waNum = ph => {
+  let g = String(ph || '').replace(/\D/g, '');
+  if (g.startsWith('00')) g = g.slice(2);
+  if (g.length === 10 && /^[6-9]/.test(g)) g = '91' + g;
+  else if (g.length === 11 && g.startsWith('07')) g = '44' + g.slice(1);
+  else if (g.length === 12 && g.startsWith('01')) g = '1' + g.slice(2);
+  else if (g.length === 12 && g.startsWith('11')) g = '1' + g.slice(2);
+  return g.length >= 10 ? g : '';
+};
+const phoneLine = (ph, lbl) => { const w = waNum(ph);
+  return `<div class="ph">${lbl ? `<span class="dtag" style="margin:0;background:var(--cream);color:var(--muted)">${lbl}</span>` : ''}<span>${esc(ph)}</span>${w ? `<a class="wa" href="https://wa.me/${w}" target="_blank" rel="noopener">WhatsApp</a><a class="call" href="tel:+${w}">Call</a>` : ''}</div>`; };
+function viewDir() {
+  return `<div class="dirlock">🔒 Private: only classmates the committee has allowed can see this page. Numbers come from the 1993 contact list; for classmates who have registered, we show the number they entered themselves. Please don't forward this list.</div>
+  <div class="q nbsearch"><label for="dirQ">Search</label><input id="dirQ" type="text" placeholder="Name, city or number" autocomplete="off"></div>
+  <div class="dirchips" id="dirChips"></div>
+  <p class="sub" id="dirSum" style="margin:0 0 10px"></p>
+  <div class="dirlist" id="dirList"><div class="ld" style="padding:20px;text-align:center;color:var(--muted)">Loading the directory…</div></div>`;
+}
+async function bindDir() {
+  let data;
+  try { data = S.dirData = await run('getDirectory', AUTH); }
+  catch (e) { $('#dirList').innerHTML = `<p class="sub">${esc(e.message)}</p>`; return; }
+  const rows = data.rows;
+  const F = [['all', 'All', () => true], ['joined', 'Joined', x => x.status === 'joined'], ['not', 'Not yet', x => x.status === 'not'],
+             ['nophone', 'No number', x => x.status === 'not' && !x.phone], ['check', 'To check', x => !!x.note && x.status !== 'memory' || !!x.alt],
+             ['memory', 'In memory', x => x.status === 'memory']];
+  let f = S.dirF || 'all';
+  const draw = () => {
+    const q = ($('#dirQ').value || '').trim().toLowerCase(), qd = q.replace(/\D/g, '');
+    $('#dirChips').innerHTML = F.map(([k, l, fn]) => `<button type="button" data-f="${k}" aria-pressed="${k === f}">${l} (${rows.filter(fn).length})</button>`).join('');
+    $('#dirChips').querySelectorAll('[data-f]').forEach(b => b.onclick = () => { f = S.dirF = b.dataset.f; draw(); });
+    const fn = F.find(x => x[0] === f)[2];
+    const list = rows.filter(fn).filter(x => !q || (x.name + ' ' + x.now + ' ' + x.city).toLowerCase().includes(q) ||
+      (qd.length >= 4 && (x.phone + (x.phone2 || '') + x.alt).replace(/\D/g, '').includes(qd)));
+    $('#dirSum').textContent = `${rows.filter(x => x.status === 'joined').length} joined · ${rows.filter(x => x.status === 'not').length} not yet · updated ${data.when}`;
+    $('#dirList').innerHTML = list.map(x => {
+      return `<div class="dirrow"><div class="h"><div><b>${esc(x.id ? nbName(x.name) : x.name)}</b><span class="dtag ${x.status}">${x.status === 'joined' ? '✓ Joined' : x.status === 'memory' ? 'In memory' : 'Not yet'}</span></div>${x.page ? `<span class="pg">p. ${x.page}</span>` : ''}</div>
+        ${x.status === 'joined' && (x.now || x.city) ? `<div class="now">${esc([x.id ? x.now : '', x.city].filter(Boolean).join(' · '))}</div>` : ''}
+        ${x.phone ? phoneLine(x.phone, x.phone2 ? 'Primary' : '') : x.status === 'not' ? '<div class="alt">No number yet</div>' : ''}
+        ${x.phone2 ? phoneLine(x.phone2, 'Second') : ''}
+        ${x.alt ? `<div class="alt">The 1993 contact list had: ${esc(x.alt)}</div>` : ''}
+        ${x.note ? `<div class="note">${esc(x.note)}</div>` : ''}</div>`;
+    }).join('') || '<p class="sub">No one matches.</p>';
+  };
+  $('#dirQ').oninput = draw;
+  draw();
 }
 
 /* ---------- autosave for Book One + Travel ---------- */
