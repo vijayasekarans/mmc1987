@@ -244,6 +244,9 @@ textarea{min-height:150px;resize:vertical;line-height:1.5}
 .dirrow .note{color:#8A5A12}
 .dtag{display:inline-block;font:700 12px var(--sans);padding:2px 8px;border-radius:99px;margin-left:6px;vertical-align:2px}
 .dtag.joined{background:var(--green-l);color:var(--green)}.dtag.not{background:#F6EAD6;color:#8A5A12}.dtag.memory{background:#ECE7F1;color:#5B2A5E}
+.dadd{margin-top:6px}.daddb{min-height:36px;padding:4px 12px;border-radius:999px;border:1.5px dashed var(--teal);background:#fff;color:var(--teal);font:700 14px var(--sans);cursor:pointer}
+.daddf{display:flex;gap:6px;flex-wrap:wrap}.daddf input{flex:1 1 180px;min-height:40px;padding:6px 10px;border:1.5px solid var(--line);border-radius:10px;font:16px var(--sans)}
+.daddf button{min-height:40px;padding:4px 14px;border-radius:999px;font:700 14px var(--sans);cursor:pointer;border:1.5px solid var(--teal)}.daddf .dsave{background:var(--teal);color:#fff}.daddf .dcancel{background:#fff;color:var(--teal)}
 .dirlock{background:#FBF7EE;border:1px solid var(--gold-l);border-radius:12px;padding:10px 12px;font-size:15px;color:var(--muted);margin:8px 0 12px}
 .nbres button.r{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;text-align:left;background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 12px;cursor:pointer;font-size:17px}
 .nbres .pg{color:var(--muted);font-size:14px;white-space:nowrap}
@@ -1704,7 +1707,7 @@ async function bindFriends() {
 const phoneLine = (ph, lbl) => { const w = waNum(ph);
   return `<div class="ph">${lbl ? `<span class="dtag" style="margin:0;background:var(--cream);color:var(--muted)">${lbl}</span>` : ''}<span>${esc(ph)}</span>${w ? `<a class="wa" href="https://wa.me/${w}" target="_blank" rel="noopener">WhatsApp</a><a class="call" href="tel:+${w}">Call</a>` : ''}</div>`; };
 function viewDir() {
-  return `<div class="dirlock">🔒 Private: only classmates the committee has allowed can see this page. Numbers come from the 1993 contact list; for classmates who have registered, we show the number they entered themselves. Please don't forward this list.</div>
+  return `<div class="dirlock">🔒 Private: only classmates the committee has allowed can see this page. Numbers come from the 1993 contact list; for classmates who have registered, we show the number they entered themselves. Know the number of a friend who hasn’t joined yet? Tap “Add a number”: it shows with your name until they join. Please don't forward this list.</div>
   <div class="q nbsearch"><label for="dirQ">Search</label><input id="dirQ" type="text" placeholder="Name, city or number" autocomplete="off"></div>
   <div class="dirchips" id="dirChips"></div>
   <p class="sub" id="dirSum" style="margin:0 0 10px"></p>
@@ -1714,9 +1717,9 @@ async function bindDir() {
   let data;
   try { data = S.dirData = await run('getDirectory', AUTH); }
   catch (e) { $('#dirList').innerHTML = `<p class="sub">${esc(e.message)}</p>`; return; }
-  const rows = data.rows;
+  let rows = data.rows;
   const F = [['all', 'All', () => true], ['joined', 'Joined', x => x.status === 'joined'], ['not', 'Not yet', x => x.status === 'not'],
-             ['nophone', 'No number', x => x.status === 'not' && !x.phone], ['check', 'To check', x => !!x.note && x.status !== 'memory' || !!x.alt],
+             ['nophone', 'No number', x => x.status === 'not' && !x.phone && !x.added], ['check', 'To check', x => !!x.note && x.status !== 'memory' || !!x.alt],
              ['memory', 'In memory', x => x.status === 'memory']];
   let f = S.dirF || 'all';
   const draw = () => {
@@ -1725,18 +1728,39 @@ async function bindDir() {
     $('#dirChips').querySelectorAll('[data-f]').forEach(b => b.onclick = () => { f = S.dirF = b.dataset.f; draw(); });
     const fn = F.find(x => x[0] === f)[2];
     const list = rows.filter(fn).filter(x => !q || (x.name + ' ' + x.now + ' ' + x.city).toLowerCase().includes(q) ||
-      (qd.length >= 4 && (x.phone + (x.phone2 || '') + x.alt).replace(/\D/g, '').includes(qd)));
+      (qd.length >= 4 && (x.phone + (x.phone2 || '') + x.alt + (x.added || '')).replace(/\D/g, '').includes(qd)));
     $('#dirSum').textContent = `${rows.filter(x => x.status === 'joined').length} joined · ${rows.filter(x => x.status === 'not').length} not yet · updated ${data.when}`;
     $('#dirList').innerHTML = list.map(x => {
       return `<div class="dirrow"><div class="h"><div><b>${esc(x.id ? nbName(x.name) : x.name)}</b><span class="dtag ${x.status}">${x.status === 'joined' ? '✓ Joined' : x.status === 'memory' ? 'In memory' : 'Not yet'}</span></div>${x.page ? `<span class="pg">p. ${x.page}</span>` : ''}</div>
         ${x.status === 'joined' && (x.now || x.city) ? `<div class="now">${esc([x.id ? x.now : '', x.city].filter(Boolean).join(' · '))}</div>` : ''}
-        ${x.phone ? phoneLine(x.phone, x.phone2 ? 'Primary' : '') : x.status === 'not' ? '<div class="alt">No number yet</div>' : ''}
+        ${x.phone ? phoneLine(x.phone, x.phone2 ? 'Primary' : '') : x.status === 'not' && !x.added ? '<div class="alt">No number yet</div>' : ''}
+        ${x.added ? phoneLine(x.added, 'Added') + `<div class="alt">Added by ${esc(x.addedBy || 'a classmate')}${x.addedOn ? ' on ' + esc(x.addedOn) : ''} · not yet confirmed</div>` : ''}
         ${x.phone2 ? phoneLine(x.phone2, 'Second') : ''}
         ${x.alt ? `<div class="alt">The 1993 contact list had: ${esc(x.alt)}</div>` : ''}
-        ${x.note ? `<div class="note">${esc(x.note)}</div>` : ''}</div>`;
+        ${x.note ? `<div class="note">${esc(x.note)}</div>` : ''}
+        ${x.status === 'not' && x.id ? `<div class="dadd" data-id="${esc(x.id)}"><button type="button" class="daddb">＋ ${x.phone || x.added ? 'Add a newer number' : 'Add a number'}</button></div>` : ''}</div>`;
     }).join('') || '<p class="sub">No one matches.</p>';
   };
   $('#dirQ').oninput = draw;
+  $('#dirList').onclick = async ev => {
+    const b = ev.target.closest('.daddb');
+    if (b) {
+      const box = b.parentElement;
+      box.innerHTML = `<div class="daddf"><input type="tel" placeholder="+91 98400 12345" autocomplete="off" aria-label="Phone number"><button type="button" class="dsave">Save</button><button type="button" class="dcancel">Cancel</button></div><div class="alt">Only add a number you know is your friend’s. It shows with your name until they join.</div>`;
+      box.querySelector('input').focus();
+      return;
+    }
+    if (ev.target.closest('.dcancel')) { draw(); return; }
+    const s = ev.target.closest('.dsave');
+    if (!s) return;
+    const box = s.closest('.dadd'), v = box.querySelector('input').value.trim();
+    if (!v) return;
+    s.disabled = true; s.textContent = 'Saving…';
+    try {
+      data = S.dirData = await run('addDirNumber', AUTH, box.dataset.id, v);
+      rows = data.rows; pill('Number added ✓', 'ok'); draw();
+    } catch (e) { s.disabled = false; s.textContent = 'Save'; pill(e.message, 'err', 6000); }
+  };
   draw();
 }
 
