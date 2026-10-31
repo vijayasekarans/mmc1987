@@ -792,6 +792,7 @@ function openStep1() {
   const p = (S.data && S.data.person) || { name: '', college: '', whatsapp: '', phone2: '', email: '', address: '', city: '', hasPin: false };
   const isNew = !AUTH;
   const needPin = isNew || !p.hasPin;
+  let share = (S.data && S.data.dirShare) || '';
   const f = (id, label, val, o = {}) => `<div class="q"><label for="s1-${id}">${esc(label)}${o.req ? ' <span style="color:var(--red)">*</span>' : ' <span class="opt">(optional)</span>'}</label>
     ${o.hint ? `<span class="hint">${esc(o.hint)}</span>` : ''}
     ${o.area ? `<textarea id="s1-${id}" style="min-height:100px" placeholder="${esc(o.ph || '')}">${esc(val)}</textarea>`
@@ -809,6 +810,10 @@ function openStep1() {
       ${f('address', 'Postal address', p.address, { req: 1, area: 1, ph: 'House, street, city, PIN / ZIP code', hint: 'Only if you’d like a printed book or invitation posted to you. (Needed so we can post the books.)' })}
       ${f('city', 'City & country', p.city, { req: 1, ph: 'e.g. Chennai, India' })}
     </div>
+    <div class="group"><h4>Share with the class? <span style="color:var(--red)">*</span></h4>
+      <p class="hint" style="margin:-6px 0 12px;color:var(--muted);font-size:15px">Would you like classmates to see your phone number and email in the class directory? Only classmates who also share can see them, and you can change this any time.</p>
+      <div class="dsopts" id="s1share">${DIR_OPTS.map(([k, i, t, d]) => `<button type="button" data-share="${k}" aria-pressed="${share === k}"><span class="i" aria-hidden="true">${i}</span><span><b>${t}</b><span class="d">${d}</span></span></button>`).join('')}</div>
+    </div>
     <div class="group"><h4>${needPin ? 'Choose your PIN' : 'Your PIN'}</h4>
       ${needPin ? `<p class="hint" style="margin:-6px 0 12px;color:var(--muted);font-size:15px">4 to 6 digits that you’ll remember. With your mobile number, it lets you come back to your page, and keeps it private.</p>
         <div class="row"><div class="q"><label for="pin1">PIN <span style="color:var(--red)">*</span></label><input id="pin1" class="pin" type="password" inputmode="numeric" autocomplete="new-password" maxlength="6" style="max-width:none"></div>
@@ -822,14 +827,20 @@ function openStep1() {
   document.querySelectorAll('[data-home]').forEach(b => b.onclick = () => home());
   const bk = $('#s1back'); if (bk) bk.onclick = () => landing();
   const ch = $('#s1chg'); if (ch) ch.onclick = () => pinModal();
+  $('#s1share').onclick = ev => {
+    const b = ev.target.closest('[data-share]'); if (!b) return;
+    share = b.dataset.share;
+    $('#s1share').querySelectorAll('[data-share]').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+  };
   ['pin1', 'pin2'].forEach(id => { const el = $('#' + id); if (el) el.oninput = () => el.value = el.value.replace(/\D/g, '').slice(0, 6); });
   $('#s1save').onclick = async () => {
     const msg = $('#s1msg'), v = id => ($('#s1-' + id).value || '').trim();
-    const info = { name: v('name'), college: v('college'), whatsapp: v('whatsapp'), phone2: v('phone2'), email: v('email'), address: v('address'), city: v('city') };
+    const info = { name: v('name'), college: v('college'), whatsapp: v('whatsapp'), phone2: v('phone2'), email: v('email'), address: v('address'), city: v('city'), share };
     if (!info.name) { msg.textContent = 'Please enter your full name.'; $('#s1-name').focus(); return; }
     if (info.whatsapp.replace(/\D/g, '').length < 8) { msg.textContent = 'Please enter your mobile number with country code.'; $('#s1-whatsapp').focus(); return; }
     if (info.phone2 && info.phone2.replace(/\D/g, '').length < 8) { msg.textContent = 'Your second number looks too short. Please include the country code, or leave it empty.'; $('#s1-phone2').focus(); return; }
     if (!info.address) { msg.textContent = 'Please enter your postal address.'; $('#s1-address').focus(); return; } if (!info.city) { msg.textContent = 'Please enter your city and country.'; $('#s1-city').focus(); return; } if (!/^\S+@\S+\.\S+$/.test(info.email)) { msg.textContent = 'That email doesn’t look right. Please enter a valid email address.'; $('#s1-email').focus(); return; }
+    if (!share) { msg.textContent = 'Please choose whether to share your phone and email with classmates.'; $('#s1share').scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
     let pin = '', rem = false;
     if (needPin) {
       pin = $('#pin1').value; rem = $('#pinRem').checked;
@@ -846,6 +857,7 @@ function openStep1() {
       const r = await run('saveProfile', AUTH, info, pin, rem);
       AUTH = r.auth || AUTH;
       if (pin) { S.data.person.hasPin = true; LS.set('n27key', KEY); LS.set('n27dev_' + KEY, rem && r.device ? r.device : null); }
+      S.data.dirShare = share; delete info.share;
       Object.assign(S.data.person, info);
       if (!S.data.bookone.email && info.email) S.data.bookone.email = info.email;
       if (!S.data.bookone.phone && info.whatsapp) S.data.bookone.phone = info.whatsapp;
