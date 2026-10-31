@@ -232,6 +232,20 @@ textarea{min-height:150px;resize:vertical;line-height:1.5}
 .dirchips button{min-height:40px;padding:6px 12px;border-radius:999px;border:1.5px solid var(--line);background:#fff;font:600 15px var(--sans);color:var(--ink);cursor:pointer}
 .dirchips button[aria-pressed="true"]{background:var(--teal);border-color:var(--teal);color:#fff}
 .dirlist{display:grid;gap:8px}
+.dshare{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px;margin:6px 0 14px}
+.dshare h3{font:700 21px var(--serif);color:var(--ink);margin:0 0 4px}
+.dshare p{margin:0 0 10px;color:var(--muted);font-size:15.5px}
+.dsopts{display:grid;gap:8px}
+.dsopts button{display:flex;gap:12px;align-items:flex-start;text-align:left;width:100%;min-height:64px;padding:12px 14px;border-radius:12px;border:1.5px solid var(--line);background:#fff;cursor:pointer;font:inherit;color:var(--ink)}
+.dsopts button .i{font-size:24px;line-height:1}
+.dsopts button b{display:block;font:700 17px var(--sans)}
+.dsopts button span.d{display:block;font-size:14.5px;color:var(--muted);margin-top:2px}
+.dsopts button[aria-pressed="true"]{border-color:var(--teal);background:#EEF6F5;box-shadow:inset 0 0 0 1px var(--teal)}
+.dsopts button[disabled]{opacity:.6}
+.dsnow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;background:#EEF6F5;border:1px solid #CFE3E1;border-radius:12px;padding:10px 12px;margin:6px 0 12px;font-size:15.5px}
+.dirrow .em{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:6px;font-size:15.5px;word-break:break-all}
+.dirrow .em a{color:var(--teal);font-weight:700}
+.dtag.you{background:#EEF6F5;color:var(--teal)}
 .dirrow{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px}
 .dirrow .h{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
 .dirrow b{font:700 18px var(--serif);color:var(--ink)}
@@ -708,7 +722,7 @@ function home() {
       ${s2 ? hubCard() : ''}
       ${s1 ? `<button class="tile frtile" data-go="friends"><img class="tk ph" src="${FRIEND_IMG}" alt="" aria-hidden="true"><span class="t"><small class="stepk">Bring one back</small><b>Who do you miss?</b><span>Send an old friend a personal invite</span></span><span class="chev">›</span></button>` : ''}
       ${s1 ? `<button class="tile nbtile" data-go="nb"><img class="tk" src="${NB_TICKET}" alt="" aria-hidden="true"><span class="t"><small class="stepk">1993 · Our graduation book</small><b>Flip through NOSTALGIA 1993</b><span>Find yourself and old friends, page by page</span></span><span class="chev">›</span></button>` : ''}
-      ${d.dir ? `<button class="tile dirtile" data-go="dir"><img class="tk ph" src="${DIR_TICKET}" alt="" aria-hidden="true"><span class="t"><small class="stepk">Private · MMC 87</small><b>Class directory</b><span>All 176 of us, with phone numbers and who has joined</span></span><span class="chev">›</span></button>` : ''}
+      ${d.dir ? `<button class="tile dirtile" data-go="dir"><img class="tk ph" src="${DIR_TICKET}" alt="" aria-hidden="true"><span class="t"><small class="stepk">Private · MMC 87</small><b>Class directory</b><span>${dirTileSub(d)}</span></span><span class="chev">›</span></button>` : ''}
     </div>
     ${s1 ? `<div class="privacy on"><span class="ic" aria-hidden="true">🔒</span><span class="tx"><b>Your page is protected with your PIN.</b></span>
       <button class="linkbtn" id="chgPin">Change PIN</button><button class="linkbtn" style="color:var(--muted)" id="signOut">Sign out</button></div>` : ''}
@@ -1707,7 +1721,17 @@ async function bindFriends() {
 }
 const phoneLine = (ph, lbl) => { const w = waNum(ph);
   return `<div class="ph">${lbl ? `<span class="dtag" style="margin:0;background:var(--cream);color:var(--muted)">${lbl}</span>` : ''}<span>${esc(ph)}</span>${w ? `<a class="wa" href="https://wa.me/${w}" target="_blank" rel="noopener">WhatsApp</a><a class="call" href="tel:+${w}">Call</a>` : ''}</div>`; };
+function dirTileSub(d) {
+  if (d.dirMode !== 'optin') return 'All 176 of us, with phone numbers and who has joined';
+  return d.dirShare === 'phone' || d.dirShare === 'email' ? 'Classmates who chose to share their details'
+    : d.dirShare === 'private' ? 'You’ve kept yours private · change any time' : 'Your choice: share your details, see who else has';
+}
+const DIR_OPTS = [
+  ['phone', '📞', 'Share my phone & email', 'Classmates who also share can call, WhatsApp or email you, and you see their numbers and emails.'],
+  ['email', '✉️', 'Share my email only', 'Your phone number stays hidden. You see the emails of those who share (phone numbers are shown only to those who share theirs).'],
+  ['private', '🔒', 'Keep my details private', 'No one sees your number or email, and the directory stays closed for you. You can change this any time.']];
 function viewDir() {
+  if (S.data.dirMode === 'optin') return `<div id="dirOpt"><div class="ld" style="padding:20px;text-align:center;color:var(--muted)">Loading…</div></div>`;
   return `<div class="dirlock">🔒 Private: only classmates the committee has allowed can see this page. Numbers come from the 1993 contact list; for classmates who have registered, we show the number they entered themselves. Know the number of a friend who hasn’t joined yet? Tap “Add a number”: it shows with your name until they join. Please don't forward this list.</div>
   <div class="q nbsearch"><label for="dirQ">Search</label><input id="dirQ" type="text" placeholder="Name, city or number" autocomplete="off"></div>
   <div class="dirchips" id="dirChips"></div>
@@ -1716,8 +1740,10 @@ function viewDir() {
 }
 async function bindDir() {
   let data;
+  const box = $('#dirOpt');
   try { data = S.dirData = await run('getDirectory', AUTH); }
-  catch (e) { $('#dirList').innerHTML = `<p class="sub">${esc(e.message)}</p>`; return; }
+  catch (e) { (box || $('#dirList')).innerHTML = `<p class="sub">${esc(e.message)}</p>`; return; }
+  if (data.mode === 'optin') return bindDirOpt(data);
   let rows = data.rows;
   const F = [['all', 'All', () => true], ['joined', 'Joined', x => x.status === 'joined'], ['not', 'Not yet', x => x.status === 'not'],
              ['nophone', 'No number', x => x.status === 'not' && !x.phone && !x.added], ['check', 'To check', x => !!x.note && x.status !== 'memory' || !!x.alt],
@@ -1761,6 +1787,54 @@ async function bindDir() {
       data = S.dirData = await run('addDirNumber', AUTH, box.dataset.id, v);
       rows = data.rows; pill('Number added ✓', 'ok'); draw();
     } catch (e) { s.disabled = false; s.textContent = 'Save'; pill(e.message, 'err', 6000); }
+  };
+  draw();
+}
+
+function bindDirOpt(data) {
+  const box = $('#dirOpt');
+  let f = 'all', choosing = false;
+  const sharing = () => data.share === 'phone' || data.share === 'email';
+  const choice = () => `<div class="dshare"><h3>${sharing() ? 'Change what you share' : 'Share your details with the class?'}</h3>
+      <p>Nothing is shown without your permission. Only classmates who choose to share can open the directory, and each person sees only what others agreed to show. Email addresses and numbers are never shown to anyone outside our batch.</p>
+      <div class="dsopts">${DIR_OPTS.map(([k, i, t, d]) => `<button type="button" data-share="${k}" aria-pressed="${data.share === k}"><span class="i" aria-hidden="true">${i}</span><span><b>${t}</b><span class="d">${d}</span></span></button>`).join('')}</div>
+      <p style="margin:10px 0 0;font-size:14px">${data.sharing} of ${data.registered} registered classmates are sharing so far.${sharing() ? ' <button type="button" class="linkbtn" id="dsCancel">Cancel</button>' : ''}</p></div>`;
+  const label = { phone: 'your phone & email', email: 'your email only' };
+  const draw = () => {
+    if (!sharing() || choosing) {
+      box.innerHTML = (data.share === 'private' && !choosing ? `<div class="dirlock">🔒 You chose to keep your details private, so the directory is closed for you. Change your mind any time below.</div>` : '') + choice();
+      return;
+    }
+    const rows = data.rows, q = (($('#dirQ') || {}).value || '').trim().toLowerCase();
+    const F = [['all', 'All', () => true], ['phone', 'With phone', x => !!x.phone], ['email', 'Email only', x => x.share === 'email']];
+    if (data.share === 'email') F.splice(1, 1);
+    const fn = (F.find(x => x[0] === f) || F[0])[2];
+    const list = rows.filter(fn).filter(x => !q || (x.name + ' ' + x.college + ' ' + x.city + ' ' + x.email).toLowerCase().includes(q));
+    const keepQ = $('#dirQ') ? $('#dirQ').value : '';
+    box.innerHTML = `<div class="dsnow"><span>✓ You’re sharing <b>${label[data.share]}</b>.</span><button type="button" class="linkbtn" id="dsChange">Change</button></div>
+      ${data.share === 'email' ? `<div class="dirlock">You chose email only, so phone numbers are hidden from you too. Share your phone to see the numbers of those who share theirs.</div>` : ''}
+      <div class="dirlock">🔒 Only classmates who chose to share appear here (${rows.length} so far). Please don't forward these details outside the batch.</div>
+      <div class="q nbsearch"><label for="dirQ">Search</label><input id="dirQ" type="text" placeholder="Name, city or email" autocomplete="off"></div>
+      <div class="dirchips">${F.map(([k, l, g]) => `<button type="button" data-f="${k}" aria-pressed="${k === f}">${l} (${rows.filter(g).length})</button>`).join('')}</div>
+      <p class="sub" style="margin:0 0 10px">${rows.length} sharing · updated ${esc(data.when)}</p>
+      <div class="dirlist">${list.map(x => `<div class="dirrow"><div class="h"><div><b>${esc(x.name)}</b>${x.me ? '<span class="dtag you">You</span>' : ''}</div>${x.page ? `<span class="pg">p. ${x.page}</span>` : ''}</div>
+        ${x.college || x.city ? `<div class="now">${esc([x.college && x.college !== x.name ? 'In college: ' + x.college : '', x.city].filter(Boolean).join(' · '))}</div>` : ''}
+        ${x.phone ? phoneLine(x.phone, x.phone2 ? 'Primary' : '') : ''}${x.phone2 ? phoneLine(x.phone2, 'Second') : ''}
+        ${x.email ? `<div class="em"><span>${esc(x.email)}</span><a href="mailto:${esc(x.email)}">Email</a></div>` : ''}
+        ${x.share === 'email' ? '<div class="alt">Shares email only</div>' : ''}</div>`).join('') || '<p class="sub">No one matches.</p>'}</div>`;
+    const qi = $('#dirQ'); qi.value = keepQ; qi.oninput = () => { const p = qi.selectionStart; draw(); const n = $('#dirQ'); n.focus(); n.setSelectionRange(p, p); };
+  };
+  box.onclick = async ev => {
+    const fb = ev.target.closest('[data-f]'); if (fb) { f = fb.dataset.f; draw(); return; }
+    if (ev.target.closest('#dsChange')) { choosing = true; draw(); return; }
+    if (ev.target.closest('#dsCancel')) { choosing = false; draw(); return; }
+    const b = ev.target.closest('[data-share]'); if (!b) return;
+    box.querySelectorAll('[data-share]').forEach(x => x.disabled = true);
+    try {
+      data = S.dirData = await run('setDirShare', AUTH, b.dataset.share);
+      S.data.dirShare = data.share; choosing = false;
+      pill(data.share === 'private' ? 'Kept private ✓' : 'Thank you for sharing ✓', 'ok'); draw(); window.scrollTo(0, 0);
+    } catch (e) { pill(e.message, 'err', 6000); draw(); }
   };
   draw();
 }
