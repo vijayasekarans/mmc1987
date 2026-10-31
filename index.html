@@ -715,6 +715,10 @@ function home() {
     </div>
     ${BOOT.pinReset && !S.resetShown ? `<div class="note">Your PIN has been removed. Please choose a new one in Step 1.</div>` : ''}
     ${C.LOCKED ? `<div class="note">Submissions are now closed while the books are being designed. You can still look at everything you sent.</div>` : ''}
+    ${d.dirAdded && step1Done() ? `<div class="dshare" id="dirAdded"><h3>Is this your number?</h3>
+      <p>${esc(d.dirAdded.by)} added <b>${esc(d.dirAdded.phone)}</b> for you in the class directory. It has been kept private. Shall we add it to your details as your second number?</p>
+      <div class="dsopts"><button type="button" data-da="1"><span class="i" aria-hidden="true">✓</span><span><b>Yes, it’s mine</b><span class="d">Save it as my second number</span></span></button>
+      <button type="button" data-da="0"><span class="i" aria-hidden="true">✕</span><span><b>No, don’t use it</b><span class="d">It stays private and won’t be shown</span></span></button></div></div>` : ''}
     <div class="tiles">
       ${stepCard(1, 'About you', s1 ? [d.person.name, d.person.whatsapp].filter(Boolean).join(' · ') : 'Name, mobile, PIN', s1 ? 'done' : 'todo', 'step1')}
       ${stepCard(2, 'Dates & destination poll', pollSub, s2 ? 'done' : (s1 ? 'todo' : 'locked'), 'poll')}
@@ -736,6 +740,15 @@ function home() {
     if (g === 'hub') return $('#subHub') && $('#subHub').scrollIntoView({ behavior: 'smooth' });
     open(g);
   });
+  const da = $('#dirAdded'); if (da) da.onclick = async ev => {
+    const b = ev.target.closest('[data-da]'); if (!b) return;
+    da.querySelectorAll('[data-da]').forEach(x => x.disabled = true);
+    try {
+      const r = await run('confirmDirNumber', AUTH, d.dirAdded.id, b.dataset.da === '1');
+      d.person.phone2 = r.phone2 || d.person.phone2; d.dirAdded = null;
+      pill(b.dataset.da === '1' ? 'Saved as your second number ✓' : 'Okay, it stays private ✓', 'ok'); home();
+    } catch (e) { pill(e.message, 'err', 6000); da.querySelectorAll('[data-da]').forEach(x => x.disabled = false); }
+  };
   const cp = $('#chgPin'); if (cp) cp.onclick = () => pinModal();
   const so = $('#signOut'); if (so) so.onclick = () => {
     LS.set('n27dev_' + KEY, null); LS.set('n27key', null);
@@ -1746,7 +1759,7 @@ async function bindDir() {
   if (data.mode === 'optin') return bindDirOpt(data);
   let rows = data.rows;
   const F = [['all', 'All', () => true], ['joined', 'Joined', x => x.status === 'joined'], ['not', 'Not yet', x => x.status === 'not'],
-             ['nophone', 'No number', x => x.status === 'not' && !x.phone && !x.added], ['check', 'To check', x => !!x.note && x.status !== 'memory' || !!x.alt],
+             ['nophone', 'No number', x => x.status === 'not' && !x.phone && !x.added && !x.pending], ['check', 'To check', x => !!x.note && x.status !== 'memory' || !!x.alt],
              ['memory', 'In memory', x => x.status === 'memory']];
   let f = S.dirF || 'all';
   const draw = () => {
@@ -1760,12 +1773,13 @@ async function bindDir() {
     $('#dirList').innerHTML = list.map(x => {
       return `<div class="dirrow"><div class="h"><div><b>${esc(x.id ? nbName(x.name) : x.name)}</b><span class="dtag ${x.status}">${x.status === 'joined' ? '✓ Joined' : x.status === 'memory' ? 'In memory' : 'Not yet'}</span></div>${x.page ? `<span class="pg">p. ${x.page}</span>` : ''}</div>
         ${x.status === 'joined' && (x.now || x.city) ? `<div class="now">${esc([x.id ? x.now : '', x.city].filter(Boolean).join(' · '))}</div>` : ''}
-        ${x.phone ? phoneLine(x.phone, x.phone2 ? 'Primary' : '') : x.status === 'not' && !x.added ? '<div class="alt">No number yet</div>' : ''}
+        ${x.phone ? phoneLine(x.phone, x.phone2 ? 'Primary' : '') : x.status === 'not' && !x.added && !x.pending ? '<div class="alt">No number yet</div>' : ''}
         ${x.added ? phoneLine(x.added, 'Added') + `<div class="alt">Added by ${esc(x.addedBy || 'a classmate')}${x.addedOn ? ' on ' + esc(x.addedOn) : ''} · not yet confirmed</div>` : ''}
+        ${x.pending ? `<div class="alt">🔒 ${esc(x.addedBy || 'A classmate')} added a number · kept private until ${esc(nbName(x.name))} joins and confirms it</div>` : ''}
         ${x.phone2 ? phoneLine(x.phone2, 'Second') : ''}
         ${x.alt ? `<div class="alt">The 1993 contact list had: ${esc(x.alt)}</div>` : ''}
         ${x.note ? `<div class="note">${esc(x.note)}</div>` : ''}
-        ${x.status === 'not' && x.id ? `<div class="dadd" data-id="${esc(x.id)}"><button type="button" class="daddb">＋ ${x.phone || x.added ? 'Add a newer number' : 'Add a number'}</button></div>` : ''}</div>`;
+        ${x.status === 'not' && x.id ? `<div class="dadd" data-id="${esc(x.id)}"><button type="button" class="daddb">＋ ${x.phone || x.added || x.pending ? 'Add a newer number' : 'Add a number'}</button></div>` : ''}</div>`;
     }).join('') || '<p class="sub">No one matches.</p>';
   };
   $('#dirQ').oninput = draw;
@@ -1773,7 +1787,7 @@ async function bindDir() {
     const b = ev.target.closest('.daddb');
     if (b) {
       const box = b.parentElement;
-      box.innerHTML = `<div class="daddf"><input type="tel" placeholder="+91 98400 12345" autocomplete="off" aria-label="Phone number"><button type="button" class="dsave">Save</button><button type="button" class="dcancel">Cancel</button></div><div class="alt">Only add a number you know is your friend’s. It shows with your name until they join.</div>`;
+      box.innerHTML = `<div class="daddf"><input type="tel" placeholder="+91 98400 12345" autocomplete="off" aria-label="Phone number"><button type="button" class="dsave">Save</button><button type="button" class="dcancel">Cancel</button></div><div class="alt">Only add a number you know is your friend’s. It stays private: no one sees it until they join and confirm it’s theirs.</div>`;
       box.querySelector('input').focus();
       return;
     }
@@ -1785,7 +1799,7 @@ async function bindDir() {
     s.disabled = true; s.textContent = 'Saving…';
     try {
       data = S.dirData = await run('addDirNumber', AUTH, box.dataset.id, v);
-      rows = data.rows; pill('Number added ✓', 'ok'); draw();
+      rows = data.rows; pill('Saved privately ✓ They’ll be asked to confirm it', 'ok', 3500); draw();
     } catch (e) { s.disabled = false; s.textContent = 'Save'; pill(e.message, 'err', 6000); }
   };
   draw();
