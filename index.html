@@ -1863,6 +1863,46 @@ function bindDirOpt(data) {
     } catch (e) { pill(e.message, 'err', 6000); draw(); }
   };
   draw();
+  bindFriendAdd(() => data, d => { data = S.dirData = d; draw(); });
+}
+
+/* "Add a friend's number": for classmates who haven't joined yet. The number stays private until they join and confirm it. */
+function bindFriendAdd(getData, setData) {
+  let wrap = $('#frAddWrap');
+  if (!wrap) { $('#dirOpt').insertAdjacentHTML('afterend', '<div id="frAddWrap"></div>'); wrap = $('#frAddWrap'); }
+  wrap.innerHTML = `<div class="dshare" id="frAdd"><h3>Add a friend’s number</h3>
+      <p>Have a number for a classmate who hasn’t joined yet? Add it here. It stays private: no one sees it until they join and confirm it’s theirs. They’ll then choose for themselves whether to share it.</p>
+      <div class="q nbsearch"><label for="frQ">Find your friend</label><input id="frQ" type="text" placeholder="Name as in the 1993 book" autocomplete="off"></div>
+      <div id="frList" class="dirlist"></div></div>`;
+  const list = () => {
+    const q = ($('#frQ').value || '').trim().toLowerCase(), all = getData().missing || [];
+    if (q.length < 2) { $('#frList').innerHTML = `<p class="sub" style="margin:0">${all.length} classmates haven’t joined yet. Type at least 2 letters of a name.</p>`; return; }
+    const hits = all.filter(x => (nbName(x.name) + ' ' + x.name).toLowerCase().includes(q)).slice(0, 10);
+    $('#frList').innerHTML = hits.map(x => `<div class="dirrow"><div class="h"><div><b>${esc(nbName(x.name))}</b><span class="dtag not">Not yet</span></div>${x.page ? `<span class="pg">p. ${x.page}</span>` : ''}</div>
+      ${x.pending ? '<div class="alt">🔒 A number has already been added · waiting for them to join and confirm</div>' : ''}
+      <div class="dadd" data-id="${esc(x.id)}"><button type="button" class="daddb">＋ ${x.pending ? 'Add a newer number' : 'Add their number'}</button></div></div>`).join('')
+      || '<p class="sub" style="margin:0">No one who hasn’t joined matches that name.</p>';
+  };
+  $('#frQ').oninput = list;
+  $('#frList').onclick = async ev => {
+    const b = ev.target.closest('.daddb');
+    if (b) {
+      const box = b.parentElement;
+      box.innerHTML = `<div class="daddf"><input type="tel" placeholder="+91 98400 12345" autocomplete="off" aria-label="Phone number"><button type="button" class="dsave">Save</button><button type="button" class="dcancel">Cancel</button></div><div class="alt">Only add a number you know is your friend’s. It stays private until they join and confirm it.</div>`;
+      box.querySelector('input').focus();
+      return;
+    }
+    if (ev.target.closest('.dcancel')) { list(); return; }
+    const s = ev.target.closest('.dsave'); if (!s) return;
+    const box = s.closest('.dadd'), v = box.querySelector('input').value.trim();
+    if (v.replace(/\D/g, '').length < 8) { pill('Please enter the full number with country code.', 'err', 4000); return; }
+    s.disabled = true; s.textContent = 'Saving…';
+    try {
+      setData(await run('addDirNumber', AUTH, box.dataset.id, v));
+      pill('Saved privately ✓ They’ll be asked to confirm it', 'ok', 3500); list();
+    } catch (e) { s.disabled = false; s.textContent = 'Save'; pill(e.message, 'err', 6000); }
+  };
+  list();
 }
 
 /* ---------- autosave for Book One + Travel ---------- */
