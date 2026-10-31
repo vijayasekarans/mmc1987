@@ -725,7 +725,7 @@ function home() {
       ${stepCard(3, 'For the commemorative books', s2 ? `Add these any time until ${C.DEADLINE}` : 'Book One page, photos, stories, tributes', s2 ? (booksDone >= .99 ? 'done' : 'todo') : 'locked', 'books', books, BOOKS_TICKET)}
       ${s2 ? hubCard() : ''}
       ${s1 ? `<button class="tile frtile" data-go="friends"><img class="tk ph" src="${FRIEND_IMG}" alt="" aria-hidden="true"><span class="t"><small class="stepk">Bring one back</small><b>Who do you miss?</b><span>Send an old friend a personal invite</span></span><span class="chev">›</span></button>` : ''}
-      ${s1 ? `<button class="tile nbtile" data-go="nb"><img class="tk" src="${NB_TICKET}" alt="" aria-hidden="true"><span class="t"><small class="stepk">1993 · Our graduation book</small><b>Flip through NOSTALGIA 1993</b><span>Find yourself and old friends, page by page</span></span><span class="chev">›</span></button>` : ''}
+      ${s1 && !(d.hub && d.hub.show && d.hub.show.nb === false) ? `<button class="tile nbtile" data-go="nb"><img class="tk" src="${NB_TICKET}" alt="" aria-hidden="true"><span class="t"><small class="stepk">1993 · Our graduation book</small><b>Flip through NOSTALGIA 1993</b><span>Find yourself and old friends, page by page</span></span><span class="chev">›</span></button>` : ''}
       ${d.dir ? `<button class="tile dirtile" data-go="dir"><img class="tk ph" src="${DIR_TICKET}" alt="" aria-hidden="true"><span class="t"><small class="stepk">Private · MMC 87</small><b>Class directory</b><span>${dirTileSub(d)}</span></span><span class="chev">›</span></button>` : ''}
     </div>
     ${s1 ? `<div class="privacy on"><span class="ic" aria-hidden="true">🔒</span><span class="tx"><b>Your page is protected with your PIN.</b></span>
@@ -1042,6 +1042,7 @@ function viewBookOne() {
       ${slot('then', 'Then', 'From college days', true)}${slot('now', 'Now', 'A recent photo', true)}${slot('family', 'Family', 'Optional', false)}
     </div>
     ${S.data.person.nb && !C.LOCKED ? `<button class="linkbtn" id="useNbPhoto" type="button" style="margin-top:10px">📖 Use my photo from the 1993 book as my “Then” photo</button>` : ''}
+    ${!S.data.person.nb && !C.LOCKED ? `<div id="nbFind"><button class="linkbtn" id="nbFindBtn" type="button" style="margin-top:10px">📖 Use my photo from the 1993 book as my “Then” photo</button></div>` : ''}
     <input type="file" id="portraitFile" accept="image/*" class="sr">
     <div style="height:18px"></div>
   </div>
@@ -1089,6 +1090,37 @@ function bindSlots() {
   });
 }
 function bindBookOne() {
+  const nf = $('#nbFindBtn');
+  if (nf) nf.onclick = async () => {
+    const box = $('#nbFind'); nf.disabled = true;
+    let info;
+    try { info = await run('nbInfo', AUTH); } catch (e) { pill(e.message, 'err', 5000); nf.disabled = false; return; }
+    const first = String(S.data.person.college || S.data.person.name || '').split(/\s+/).find(w => w.replace(/\W/g, '').length >= 3) || '';
+    box.innerHTML = `<div class="dshare" style="margin-top:10px"><h3 style="font-size:18px">Find yourself in the 1993 book</h3>
+      <div class="q nbsearch"><label for="nbFQ">Your name as in the 1993 book</label><input id="nbFQ" type="text" value="${esc(first)}" autocomplete="off"></div>
+      <div class="nbres" id="nbFRes"></div></div>`;
+    const draw = () => {
+      const q = ($('#nbFQ').value || '').trim().toLowerCase();
+      const hits = q.length < 2 ? [] : info.index.filter(e => e[3] && info.claimed[e[0]] !== 1 && e[2].toLowerCase().includes(q)).slice(0, 8);
+      $('#nbFRes').innerHTML = hits.map(e => `<div class="dirrow" style="display:flex;gap:12px;align-items:center"><span class="nbft" data-ph="${esc(e[0])}" style="width:56px;height:70px;flex:0 0 56px;background:#eee;border-radius:6px;overflow:hidden;display:block"></span>
+        <div style="flex:1"><b>${esc(nbName(e[2]))}</b><div class="alt">Page ${e[1]}</div></div><button type="button" class="btn ghost" data-me="${esc(e[0])}">This is me</button></div>`).join('')
+        || `<p class="sub" style="margin:0">${q.length < 2 ? 'Type at least 2 letters.' : 'No match. Try another part of your name.'}</p>`;
+      $('#nbFRes').querySelectorAll('[data-ph]').forEach(x => run('nbPhoto', AUTH, x.dataset.ph).then(u => { if (u) x.innerHTML = `<img src="${u}" alt="" style="width:100%;height:100%;object-fit:cover">`; }, () => {}));
+    };
+    $('#nbFQ').oninput = draw; draw();
+    $('#nbFRes').onclick = async ev => {
+      const b = ev.target.closest('[data-me]'); if (!b) return;
+      if (S.data.bookone.photoThen && !confirm('Replace your current “Then” photo with your photo from the 1993 book?')) return;
+      b.disabled = true; pill('Copying your 1993 photo…', '', 0);
+      try {
+        S.data.person.nb = await run('nbClaim', AUTH, b.dataset.me);
+        const r = await run('nbUseThenPhoto', AUTH);
+        S.data.bookone.photoThen = r.id; S.data.bookone.approved = '';
+        await loadThumbs([r.id]); redrawSlot('then'); bindSlots(); box.innerHTML = '';
+        pill('Your 1993 photo is now your “Then” photo ✓', 'ok', 3500);
+      } catch (e) { pill(e.message, 'err', 6000); b.disabled = false; }
+    };
+  };
   const nbBtn = $('#useNbPhoto');
   if (nbBtn) nbBtn.onclick = async () => {
     if (S.data.bookone.photoThen && !confirm('Replace your current “Then” photo with your photo from the 1993 book?')) return;
