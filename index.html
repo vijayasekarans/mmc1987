@@ -1819,7 +1819,7 @@ const phoneLine = (ph, lbl) => { const w = waNum(ph);
 function dirTileSub(d) {
   if (d.dirMode !== 'optin') return 'All 176 of us, with phone numbers and who has joined';
   return d.dirShare === 'phone' || d.dirShare === 'email' ? 'Classmates who chose to share their details'
-    : d.dirShare === 'private' ? 'You’ve kept yours private · change any time' : 'Your choice: share your details, see who else has';
+    : d.dirShare === 'private' ? 'You chose not to be listed · change any time' : 'Do you want to be listed? Tap to choose';
 }
 const DIR_OPTS = [
   ['phone', '📞', 'Share my phone & email', 'Classmates who also share can call, WhatsApp or email you, and you see their numbers and emails.'],
@@ -1891,14 +1891,17 @@ function bindDirOpt(data) {
   const box = $('#dirOpt');
   let f = 'all', choosing = false;
   const sharing = () => data.share === 'phone' || data.share === 'email';
-  const choice = () => `<div class="dshare"><h3>${sharing() ? 'Change what you share' : 'Share your details with the class?'}</h3>
-      <p>Nothing is shown without your permission. Only classmates who choose to share can open the directory, and each person sees only what others agreed to show. Email addresses and numbers are never shown to anyone outside our batch.</p>
-      <div class="dsopts">${DIR_OPTS.map(([k, i, t, d]) => `<button type="button" data-share="${k}" aria-pressed="${data.share === k}"><span class="i" aria-hidden="true">${i}</span><span><b>${t}</b><span class="d">${d}</span></span></button>`).join('')}</div>
-      <p style="margin:10px 0 0;font-size:14px">${data.sharing} of ${data.registered} registered classmates are sharing so far.${sharing() ? ' <button type="button" class="linkbtn" id="dsCancel">Cancel</button>' : ''}</p></div>`;
+  const ASK = [['phone', '✅', 'Yes, list me', 'Your phone number and email are shown to classmates who are also listed, and you can see theirs.'],
+               ['private', '🚫', 'No, don’t list me', 'Your number and email stay hidden from everyone, and the directory stays closed for you.']];
+  const choice = () => `<div class="dshare"><h3>${sharing() ? 'Change your listing' : 'Do you want to be listed in the class directory?'}</h3>
+      <p>Only classmates who say yes can open the directory, and they see only each other. Nothing is ever shown to anyone outside our batch, and you can change your mind any time.</p>
+      <div class="dsopts">${ASK.map(([k, i, t, d]) => `<button type="button" data-share="${k}" aria-pressed="${data.share === k}"><span class="i" aria-hidden="true">${i}</span><span><b>${t}</b><span class="d">${d}</span></span></button>`).join('')}</div>
+      <p style="margin:12px 0 0;font-size:14.5px">Rather not share your phone? <button type="button" class="linkbtn" data-share="email" style="font-size:14.5px">List only my email</button></p>
+      <p style="margin:8px 0 0;font-size:14px">${data.sharing} of ${data.registered} registered classmates are listed so far.${sharing() ? ' <button type="button" class="linkbtn" id="dsCancel">Cancel</button>' : ''}</p></div>`;
   const label = { phone: 'your phone & email', email: 'your email only' };
   const draw = () => {
     if (!sharing() || choosing) {
-      box.innerHTML = (data.share === 'private' && !choosing ? `<div class="dirlock">🔒 You chose to keep your details private, so the directory is closed for you. Change your mind any time below.</div>` : '') + choice();
+      box.innerHTML = (data.share === 'private' && !choosing ? `<div class="dirlock">🔒 You chose not to be listed, so your number is hidden and the directory is closed for you. Changed your mind? Tap “Yes, list me” below.</div>` : '') + choice();
       return;
     }
     const rows = data.rows, q = (($('#dirQ') || {}).value || '').trim().toLowerCase();
@@ -1907,7 +1910,7 @@ function bindDirOpt(data) {
     const fn = (F.find(x => x[0] === f) || F[0])[2];
     const list = rows.filter(fn).filter(x => !q || (x.name + ' ' + x.college + ' ' + x.city + ' ' + x.email).toLowerCase().includes(q));
     const keepQ = $('#dirQ') ? $('#dirQ').value : '';
-    box.innerHTML = `<div class="dsnow"><span>✓ You’re sharing <b>${label[data.share]}</b>.</span><button type="button" class="linkbtn" id="dsChange">Change</button></div>
+    box.innerHTML = `<div class="dsnow"><span>✓ You’re listed: <b>${label[data.share]}</b>.</span><button type="button" class="linkbtn" id="dsChange">Change</button></div>
       ${data.share === 'email' ? `<div class="dirlock">You chose email only, so phone numbers are hidden from you too. Share your phone to see the numbers of those who share theirs.</div>` : ''}
       <div class="dirlock">🔒 Only classmates who chose to share appear here (${rows.length} so far). Please don't forward these details outside the batch.</div>
       <div class="q nbsearch"><label for="dirQ">Search</label><input id="dirQ" type="text" placeholder="Name, city or email" autocomplete="off"></div>
