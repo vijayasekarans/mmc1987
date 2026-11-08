@@ -1818,7 +1818,7 @@ const phoneLine = (ph, lbl) => { const w = waNum(ph);
   return `<div class="ph">${lbl ? `<span class="dtag" style="margin:0;background:var(--cream);color:var(--muted)">${lbl}</span>` : ''}<span>${esc(ph)}</span>${w ? `<a class="wa" href="https://wa.me/${w}" target="_blank" rel="noopener">WhatsApp</a><a class="call" href="tel:+${w}">Call</a>` : ''}</div>`; };
 function dirTileSub(d) {
   if (d.dirMode !== 'optin') return 'All 176 of us, with phone numbers and who has joined';
-  return d.dirShare === 'phone' || d.dirShare === 'email' ? 'Classmates who chose to share their details'
+  return d.dirShare === 'phone' || d.dirShare === 'email' ? 'Phone numbers and emails of our batch'
     : d.dirShare === 'private' ? 'You chose not to be listed · change any time' : 'Do you want to be listed? Tap to choose';
 }
 const DIR_OPTS = [
@@ -1894,9 +1894,8 @@ function bindDirOpt(data) {
   const ASK = [['phone', '✅', 'Yes, list me', 'Your phone number and email are shown to classmates who are also listed, and you can see theirs.'],
                ['private', '🚫', 'No, don’t list me', 'Your number and email stay hidden from everyone, and the directory stays closed for you.']];
   const choice = () => `<div class="dshare"><h3>${sharing() ? 'Change your listing' : 'Do you want to be listed in the class directory?'}</h3>
-      <p>Only classmates who say yes can open the directory, and they see only each other. Nothing is ever shown to anyone outside our batch, and you can change your mind any time.</p>
+      <p>Classmates who are listed can open the directory and see each other. If you choose not to be listed, your number and email are hidden from everyone and the directory closes for you. Nothing is ever shown outside our batch, and you can change your mind any time.</p>
       <div class="dsopts">${ASK.map(([k, i, t, d]) => `<button type="button" data-share="${k}" aria-pressed="${data.share === k}"><span class="i" aria-hidden="true">${i}</span><span><b>${t}</b><span class="d">${d}</span></span></button>`).join('')}</div>
-      <p style="margin:12px 0 0;font-size:14.5px">Rather not share your phone? <button type="button" class="linkbtn" data-share="email" style="font-size:14.5px">List only my email</button></p>
       <p style="margin:8px 0 0;font-size:14px">${data.sharing} of ${data.registered} registered classmates are listed so far.${sharing() ? ' <button type="button" class="linkbtn" id="dsCancel">Cancel</button>' : ''}</p></div>`;
   const label = { phone: 'your phone & email', email: 'your email only' };
   const draw = () => {
@@ -1905,22 +1904,24 @@ function bindDirOpt(data) {
       return;
     }
     const rows = data.rows, q = (($('#dirQ') || {}).value || '').trim().toLowerCase();
-    const F = [['all', 'All', () => true], ['phone', 'With phone', x => !!x.phone], ['email', 'Email only', x => x.share === 'email']];
+    const F = [['all', 'All', () => true], ['joined', 'Joined the portal', x => !x.notJoined], ['not', 'Not joined yet', x => !!x.notJoined]];
+    if (!rows.some(x => x.notJoined)) F.splice(1, 2);
     if (data.share === 'email') F.splice(1, 1);
     const fn = (F.find(x => x[0] === f) || F[0])[2];
-    const list = rows.filter(fn).filter(x => !q || (x.name + ' ' + x.college + ' ' + x.city + ' ' + x.email).toLowerCase().includes(q));
+    const list = rows.filter(fn).filter(x => !q || (x.name + ' ' + x.college + ' ' + x.city + ' ' + x.email).toLowerCase().includes(q) || (q.replace(/\D/g, '').length >= 4 && (x.phone + ' ' + x.phone2).replace(/\D/g, '').includes(q.replace(/\D/g, ''))));
     const keepQ = $('#dirQ') ? $('#dirQ').value : '';
     box.innerHTML = `<div class="dsnow"><span>✓ You’re listed: <b>${label[data.share]}</b>.</span><button type="button" class="linkbtn" id="dsChange">Change</button></div>
       ${data.share === 'email' ? `<div class="dirlock">You chose email only, so phone numbers are hidden from you too. Share your phone to see the numbers of those who share theirs.</div>` : ''}
-      <div class="dirlock">🔒 Only classmates who chose to share appear here (${rows.length} so far). Please don't forward these details outside the batch.</div>
-      <div class="q nbsearch"><label for="dirQ">Search</label><input id="dirQ" type="text" placeholder="Name, city or email" autocomplete="off"></div>
+      <div class="dirlock">🔒 For MMC 87 classmates only (${rows.length} listed, including classmates who haven’t joined the portal yet). Please don't forward these details outside the batch. Classmates who asked not to be listed are not shown. Don’t want to be listed yourself? Tap “Change” above.</div>
+      <div class="q nbsearch"><label for="dirQ">Search</label><input id="dirQ" type="text" placeholder="Name, city, email or number" autocomplete="off"></div>
       <div class="dirchips">${F.map(([k, l, g]) => `<button type="button" data-f="${k}" aria-pressed="${k === f}">${l} (${rows.filter(g).length})</button>`).join('')}</div>
-      <p class="sub" style="margin:0 0 10px">${rows.length} sharing · updated ${esc(data.when)}</p>
-      <div class="dirlist">${list.map(x => `<div class="dirrow"><div class="h"><div><b>${esc(x.name)}</b>${x.me ? '<span class="dtag you">You</span>' : ''}</div>${x.page ? `<span class="pg">p. ${x.page}</span>` : ''}</div>
+      <p class="sub" style="margin:0 0 10px">${rows.filter(x => !x.notJoined).length} joined · ${rows.filter(x => x.notJoined).length} not joined yet · updated ${esc(data.when)}</p>
+      <div class="dirlist">${list.map(x => `<div class="dirrow"><div class="h"><div><b>${esc(x.name)}</b>${x.me ? '<span class="dtag you">You</span>' : ''}${x.notJoined ? '<span class="dtag not">Not joined yet</span>' : ''}</div>${x.page ? `<span class="pg">p. ${x.page}</span>` : ''}</div>
         ${x.college || x.city ? `<div class="now">${esc([x.college && x.college !== x.name ? 'In college: ' + x.college : '', x.city].filter(Boolean).join(' · '))}</div>` : ''}
         ${x.phone ? phoneLine(x.phone, x.phone2 ? 'Primary' : '') : ''}${x.phone2 ? phoneLine(x.phone2, 'Second') : ''}
         ${x.email ? `<div class="em"><span>${esc(x.email)}</span><a href="mailto:${esc(x.email)}">Email</a></div>` : ''}
-        ${x.share === 'email' ? '<div class="alt">Shares email only</div>' : ''}</div>`).join('') || '<p class="sub">No one matches.</p>'}</div>`;
+        ${x.share === 'email' ? '<div class="alt">Shares email only</div>' : ''}
+        ${x.notJoined ? `<div class="alt">${x.addedBy ? 'Number added by ' + esc(x.addedBy) + ' · ' : 'From our class contact list · '}please invite them to mmc1987.com</div>` : ''}</div>`).join('') || '<p class="sub">No one matches.</p>'}</div>`;
     const qi = $('#dirQ'); qi.value = keepQ; qi.oninput = () => { const p = qi.selectionStart; draw(); const n = $('#dirQ'); n.focus(); n.setSelectionRange(p, p); };
   };
   box.onclick = async ev => {
