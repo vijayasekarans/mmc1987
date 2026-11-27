@@ -233,7 +233,6 @@ textarea{min-height:150px;resize:vertical;line-height:1.5}
 .wmpop b{font:700 17px var(--serif);color:var(--maroon)} .wmpop .c{color:var(--muted);font-size:13px;margin-bottom:4px}
 .wmpop ul{margin:4px 0 0;padding-left:16px;max-height:180px;overflow:auto;font-size:14px} .wmpop .more{font-size:13px;color:var(--muted);margin-top:4px}
 .leaflet-popup-content{margin:10px 14px!important}
-#wmMap .leaflet-tile-pane{filter:saturate(.7) sepia(.12) brightness(1.03)}
 .frtile{border-color:#7A2E4A;background:linear-gradient(180deg,#FFFDF8,#F8ECE6)}
 .frstat{display:flex;gap:10px;margin:6px 0 14px}.frstat div{flex:1;background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px}
 .frstat b{display:block;font:700 24px var(--serif);color:#7A2E4A}.frstat span{font-size:14px;color:var(--muted)}
@@ -2046,7 +2045,10 @@ function wmLoad() {
   const js = src => new Promise((ok, no) => { const t = document.createElement('script'); t.src = src; t.onload = ok; t.onerror = no; document.head.appendChild(t); });
   css('https://unpkg.com/leaflet@1.9.4/dist/leaflet.css');
   css('https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css');
-  S.wmLoading = js('https://unpkg.com/leaflet@1.9.4/dist/leaflet.js').then(() => js('https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js'));
+  css('https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css');
+  // Leaflet + clusters are required; the crisp vector basemap (MapLibre) is optional and falls back to OpenStreetMap images
+  S.wmLoading = js('https://unpkg.com/leaflet@1.9.4/dist/leaflet.js').then(() => js('https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js'))
+    .then(() => js('https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js').then(() => js('https://unpkg.com/@maplibre/maplibre-gl-leaflet@0.1.4/leaflet-maplibre-gl.js')).catch(() => null));
   S.wmLoading.catch(() => { S.wmLoading = null; });
   return S.wmLoading;
 }
@@ -2064,9 +2066,14 @@ async function bindWorld() {
     $('#wmMap').innerHTML = '<div class="ld" style="padding:20px;text-align:center;color:var(--muted)">The map could not load on this connection. Here is the list by country.</div>';
   } else {
     $('#wmMap').innerHTML = '';
-    const map = L.map('wmMap', { worldCopyJump: true, minZoom: 1, zoomControl: true }).setView([25, 40], 2);
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-      { maxZoom: 12, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' }).addTo(map);
+    const map = L.map('wmMap', { worldCopyJump: true, minZoom: 1, maxZoom: 14, zoomControl: true }).setView([25, 40], 2);
+    let gl = null;
+    try {
+      if (L.maplibreGL && window.maplibregl) gl = L.maplibreGL({ style: 'https://tiles.openfreemap.org/styles/liberty',
+        attribution: '<a href="https://openfreemap.org">OpenFreeMap</a> &copy; <a href="https://www.openmaptiles.org/">OpenMapTiles</a> Data from <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' }).addTo(map);
+    } catch (e) { gl = null; }
+    if (!gl) L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+      { maxZoom: 14, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' }).addTo(map);
     const group = L.markerClusterGroup({ showCoverageOnHover: false, maxClusterRadius: 45,
       iconCreateFunction: c => { const n = c.getAllChildMarkers().reduce((t, m) => t + m.options.n, 0), sz = n > 50 ? 54 : n > 15 ? 46 : 38;
         return L.divIcon({ html: `<div class="wmclu" style="width:${sz}px;height:${sz}px">${n}</div>`, className: '', iconSize: [sz, sz] }); } });
