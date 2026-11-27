@@ -233,6 +233,7 @@ textarea{min-height:150px;resize:vertical;line-height:1.5}
 .wmpop b{font:700 17px var(--serif);color:var(--maroon)} .wmpop .c{color:var(--muted);font-size:13px;margin-bottom:4px}
 .wmpop ul{margin:4px 0 0;padding-left:16px;max-height:180px;overflow:auto;font-size:14px} .wmpop .more{font-size:13px;color:var(--muted);margin-top:4px}
 .leaflet-popup-content{margin:10px 14px!important}
+#wmMap .leaflet-tile-pane{filter:saturate(.7) sepia(.12) brightness(1.03)}
 .frtile{border-color:#7A2E4A;background:linear-gradient(180deg,#FFFDF8,#F8ECE6)}
 .frstat{display:flex;gap:10px;margin:6px 0 14px}.frstat div{flex:1;background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px}
 .frstat b{display:block;font:700 24px var(--serif);color:#7A2E4A}.frstat span{font-size:14px;color:var(--muted)}
@@ -2064,8 +2065,8 @@ async function bindWorld() {
   } else {
     $('#wmMap').innerHTML = '';
     const map = L.map('wmMap', { worldCopyJump: true, minZoom: 1, zoomControl: true }).setView([25, 40], 2);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-      { maxZoom: 12, subdomains: 'abcd', attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>' }).addTo(map);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+      { maxZoom: 12, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' }).addTo(map);
     const group = L.markerClusterGroup({ showCoverageOnHover: false, maxClusterRadius: 45,
       iconCreateFunction: c => { const n = c.getAllChildMarkers().reduce((t, m) => t + m.options.n, 0), sz = n > 50 ? 54 : n > 15 ? 46 : 38;
         return L.divIcon({ html: `<div class="wmclu" style="width:${sz}px;height:${sz}px">${n}</div>`, className: '', iconSize: [sz, sz] }); } });
